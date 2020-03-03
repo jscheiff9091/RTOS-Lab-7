@@ -9,6 +9,7 @@
 #define FIFO_H_
 
 #include "gpio.h"
+#include <stdbool.h>
 
 
 // ----- Data types -----

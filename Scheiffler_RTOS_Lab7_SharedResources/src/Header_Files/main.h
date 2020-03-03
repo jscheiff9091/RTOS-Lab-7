@@ -56,4 +56,8 @@ void VehicleMonitorTask(void* p_args);
 /// @param[in] arguments
 void VehicleTurnTimeout(void* tmr, void* p_args);
 
+/// @brief this task performs initialization tasks for the chip
+///	Including initializing clock sources and reference voltages.
+void KeithGInit(void);
+
 #endif

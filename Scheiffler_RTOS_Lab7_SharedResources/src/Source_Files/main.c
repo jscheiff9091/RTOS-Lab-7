@@ -64,103 +64,40 @@ OS_TMR	vehTurnTimeout;
 /* Main */
 int main(void)
 {
-//	EMU_DCDCInit_TypeDef dcdcInit = EMU_DCDCINIT_DEFAULT;
-//	CMU_HFXOInit_TypeDef hfxoInit = CMU_HFXOINIT_DEFAULT;
-//
-//	/* Chip errata */
-//	CHIP_Init();
-//
-//	/* Init DCDC regulator and HFXO with kit specific parameters */
-//	/* Init DCDC regulator and HFXO with kit specific parameters */
-//	/* Initialize DCDC. Always start in low-noise mode. */
-//	//EMU_EM23Init_TypeDef em23Init = EMU_EM23INIT_DEFAULT;
-//	EMU_DCDCInit(&dcdcInit);
-//	//em23Init.vScaleEM23Voltage = emuVScaleEM23_LowPower;
-//	//EMU_EM23Init(&em23Init);
-//	CMU_HFXOInit(&hfxoInit);
-//
-//	/* Switch HFCLK to HFRCO and disable HFRCO */
-//	//CMU_OscillatorEnable(cmuOsc_HFRCO, true, true);
-//	//CMU_OscillatorEnable(cmuOsc_HFXO, true, true);
-//	CMU_ClockSelectSet(cmuClock_HF, cmuSelect_HFXO);
-//	CMU_OscillatorEnable(cmuOsc_HFRCO, false, false);
-//
-//
-//	//CMU_RouteGPIOClock();       //Enable GPIO Clock
-//
-//
-//	/* Initialize tasks, OS, etc. */
-//	//RTOS_ERR err;
-///*
-//	CPU_Init();								//Example Code called these functions...why not???
-//	BSP_SystemInit();
-//	OS_TRACE_INIT();
-//
-//	OSInit(&err);							//Initialize kernel
-//	APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), 1);
-//
-//	OSTaskCreate(&startTaskTCB,     		//Create start task
-//				 "Start Task",
-//				 StartTask,
-//				 DEF_NULL,
-//				 START_TASK_PRIO,
-//				 &startTaskStack[0],
-//				 (START_STACK_SIZE / 10u),
-//				 START_STACK_SIZE,
-//				 10u,
-//				 0u,
-//				 DEF_NULL,
-//				 OS_OPT_TASK_STK_CLR,
-//				 &err);
-//
-//	APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), 1);
-//
-//	OSStart(&err);                       		//Start the kernel, LET'S DO THIS!!!!
-//	APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), 1);
-//
-//*/
-//	DISPLAY_Init();
+	KeithGInit();
 
-//	if (RETARGET_TextDisplayInit() != TEXTDISPLAY_EMSTATUS_OK) {
-//	    while (1);
-//	}
-//
-//	printf("Welcome to the \ntextdisplay example!");
-//	while(1);
+	CMU_RouteGPIOClock();       //Enable GPIO Clock
 
-	  EMU_DCDCInit_TypeDef dcdcInit = EMU_DCDCINIT_STK_DEFAULT;
-	  CMU_HFXOInit_TypeDef hfxoInit = CMU_HFXOINIT_STK_DEFAULT;
 
-	  /* Chip errata */
-	  CHIP_Init();
+	/* Initialize tasks, OS, etc. */
+	RTOS_ERR err;
+	CPU_Init();								//Example Code called these functions...why not???
+	BSP_SystemInit();
+	OS_TRACE_INIT();
 
-	  /* Init DCDC regulator and HFXO with kit specific parameters */
-	  EMU_DCDCInit(&dcdcInit);
-	  CMU_HFXOInit(&hfxoInit);
+	OSInit(&err);							//Initialize kernel
+	APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), 1);
 
-	  /* Switch HFCLK to HFXO and disable HFRCO */
-	  CMU_ClockSelectSet(cmuClock_HF, cmuSelect_HFXO);
-	  CMU_OscillatorEnable(cmuOsc_HFRCO, false, false);
+	OSTaskCreate(&startTaskTCB,     		//Create start task
+				 "Start Task",
+				 StartTask,
+				 DEF_NULL,
+				 START_TASK_PRIO,
+				 &startTaskStack[0],
+				 (START_STACK_SIZE / 10u),
+				 START_STACK_SIZE,
+				 10u,
+				 0u,
+				 DEF_NULL,
+				 OS_OPT_TASK_STK_CLR,
+				 &err);
 
-	  /* Initialize LED driver */
-	  BSP_LedsInit();
+	APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), 1);
 
-	  /* Setup SysTick Timer for 1 msec interrupts  */
-	  if (SysTick_Config(CMU_ClockFreqGet(cmuClock_CORE) / 1000)) {
-	    while (1) ;
-	  }
+	OSStart(&err);                       		//Start the kernel, LET'S DO THIS!!!!
+	APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), 1);
 
-	  /* Initialize the display module. */
-	  DISPLAY_Init();
-
-	  /* Retarget stdio to a text display. */
-	  if (RETARGET_TextDisplayInit() != TEXTDISPLAY_EMSTATUS_OK) {
-	    while (1) ;
-	  }
-
-	  printf("FUCK OFF");
-
-	  while(1);
+	while(1);
 }
 
 
@@ -187,12 +124,15 @@ void StartTask(void* p_arg) {
 	OSStatReset(&err);							//Reset Stats? Also said to call this in Appendix B
 	APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), 1);
 #endif
-	/* Create all mutual exclusion and communication contructs */
 
+
+	/**** Create all semaphores used *****/
 	//Create semaphore used to signal a button press occurred to the speed setpoint task
 	OSSemCreate(&setptFifoSem, "Button Press Signal Semaphore", CNT_ZERO, &err);
 	APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), ;);
 
+
+	/**** Create all Flag groups used ****/
 	//Create event flag group to communicate with the vehicle monitor task
 	OSFlagCreate(&vehMonFlags, "Vehicle Monitor Event Flags", VEH_MON_CLR_FLAGS, &err);
 	APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), ;);
@@ -201,6 +141,8 @@ void StartTask(void* p_arg) {
 	OSFlagCreate(&LEDDriverEvent, "Vehicle Warning Event Flag", LED_WARN_CLR_FLAGS, &err);
 	APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), ;);
 
+
+	/**** Create all mutexs used *****/
 	//Create mutex to protect the speed setpoint data
 	OSMutexCreate(&setptDataMutex, "Speed Setpoint Data Mutex", &err);
 	APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), ;);
@@ -209,6 +151,8 @@ void StartTask(void* p_arg) {
 	OSMutexCreate(&vehDirMutex, "Vehicle Direction Mutex", &err);
 	APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), ;);
 
+
+	/**** Create all timers used ****/
 	//Create the timer to schedule the vehicle direction task
 	OSTmrCreate(&vehDirTimer,
 				"Vehicle Direction Task Timer",
@@ -231,8 +175,21 @@ void StartTask(void* p_arg) {
 				&err);
 	APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), ;);
 
-	/* Create all tasks */
-	OSTaskCreate(&speedSetPTTaskTCB,     		//Create button input task
+	//Create timer to signal the LCD Display to move to the ready queue
+	OSTmrCreate(&LCDDispTmr,
+				"LCD Display Task Timer",
+				0,
+				LCD_TMR_PERIOD,
+				OS_OPT_TMR_PERIODIC,
+				&LCDTmrCallback,
+				DEF_NULL,
+				&err);
+	APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), ;);
+
+
+	/**** Create all tasks ******/
+	//Create button input task
+	OSTaskCreate(&speedSetPTTaskTCB,
 				 "Speed Setpoint Task",
 				 SpeedSetpointTask,
 				 DEF_NULL,
@@ -248,7 +205,8 @@ void StartTask(void* p_arg) {
 
 	APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), 1);
 
-	OSTaskCreate(&LEDDriverTaskTCB,     		//Create LED driver task
+	//Create LED driver task
+	OSTaskCreate(&LEDDriverTaskTCB,
 				 "LED Driver Task",
 				 LEDDriverTask,
 				 DEF_NULL,
@@ -264,7 +222,8 @@ void StartTask(void* p_arg) {
 
 	APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), 1);
 
-    OSTaskCreate(&vehicleDirTaskTCB,     		//Create slider input task
+	//Create slider input task
+    OSTaskCreate(&vehicleDirTaskTCB,
 				 "Vehicle Direction Monitor Task",
 				 VehicleDirectionTask,
 				 DEF_NULL,
@@ -280,7 +239,8 @@ void StartTask(void* p_arg) {
 
     APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), 1);
 
-    OSTaskCreate(&vehicleMonTaskTCB,     		//Create slider input task
+    //Create vehicle monitor task
+    OSTaskCreate(&vehicleMonTaskTCB,
 				 "Vehicle Monitor Task",
 				 VehicleMonitorTask,
 				 DEF_NULL,
@@ -295,8 +255,9 @@ void StartTask(void* p_arg) {
 				 &err);
 
 	APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), 1);
-/*
-	OSTaskCreate(&LCDDispTaskTCB,     		//Create slider input task
+
+	//Create LCD Display Task
+	OSTaskCreate(&LCDDispTaskTCB,
 				 "LCD Display Task",
 				 LCDDisplayTask,
 				 DEF_NULL,
@@ -311,10 +272,11 @@ void StartTask(void* p_arg) {
 				 &err);
 
 	APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), 1);
-*/
+
     __enable_irq();						//Global Enable Interrupts
 
-    OSTaskCreate(&idleTaskTCB,     		//Create LED driver task
+    //Create Idle task
+    OSTaskCreate(&idleTaskTCB,
 				 "Idle Task",
 				 IdleTask,
 				 DEF_NULL,
@@ -412,4 +374,27 @@ void VehicleTurnTimeout(void* tmr, void* p_args) {
 
 	OSFlagPost(&vehMonFlags, VEH_TURNTM_FLAG, OS_OPT_POST_FLAG_SET, &err);	//Vehicle turn hard left/right timeout, notify Vehicle Monitor task
 	APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), ;);
+}
+
+void KeithGInit(void) {
+	EMU_DCDCInit_TypeDef dcdcInit = EMU_DCDCINIT_DEFAULT;
+	CMU_HFXOInit_TypeDef hfxoInit = CMU_HFXOINIT_DEFAULT;
+
+	/* Chip errata */
+	CHIP_Init();
+
+	/* Init DCDC regulator and HFXO with kit specific parameters */
+	/* Init DCDC regulator and HFXO with kit specific parameters */
+	/* Initialize DCDC. Always start in low-noise mode. */
+	EMU_EM23Init_TypeDef em23Init = EMU_EM23INIT_DEFAULT;
+	EMU_DCDCInit(&dcdcInit);
+	em23Init.vScaleEM23Voltage = emuVScaleEM23_LowPower;
+	EMU_EM23Init(&em23Init);
+	CMU_HFXOInit(&hfxoInit);
+
+	/* Switch HFCLK to HFRCO and disable HFRCO */
+	//CMU_OscillatorEnable(cmuOsc_HFRCO, true, true);
+	CMU_OscillatorEnable(cmuOsc_HFXO, true, true);
+	CMU_ClockSelectSet(cmuClock_HF, cmuSelect_HFXO);
+	CMU_OscillatorEnable(cmuOsc_HFRCO, false, false);
 }
