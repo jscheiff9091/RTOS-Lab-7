@@ -13,7 +13,7 @@
 #define LCD_DISP_TASK_PRIO		21u
 #define LCD_DISP_STACK_SIZE		1000u
 
-#define LCD_TMR_PERIOD			5u
+#define LCD_TMR_PERIOD			1u
 
 #define DIRECTION_STRINGS		{"Hard Left", \
 								 "Left", \

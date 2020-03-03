@@ -179,7 +179,7 @@ int32_t CAPSENSE_getSliderPosition(void)
 {
   int      i;
   int      minPos = -1;
-  uint32_t minVal = 224; /* 0.875 * 256 */
+  uint32_t minVal = 248; /* 0.875 * 256 */
   /* Values used for interpolation. There is two more which represents the edges.
    * This makes the interpolation code a bit cleaner as we do not have to make special
    * cases for handling them */

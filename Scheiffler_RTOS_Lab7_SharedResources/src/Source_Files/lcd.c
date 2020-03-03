@@ -56,12 +56,12 @@ void LCDDisplayTask(void* p_args) {
 	printf("Direction: %s\nSpeed: %s", dirStr[currDir], buffer);
 
 	//Start Task timer
-	OSTmrStart(&LCDDispTmr, &err);
-	APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), 1);
-
-	//Wait for task timer to expire
-	OSTaskSuspend(&LCDDispTaskTCB, &err);
-	APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), 1);
+//	OSTmrStart(&LCDDispTmr, &err);
+//	APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), 1);
+//
+//	//Wait for task timer to expire
+//	OSTaskSuspend(&LCDDispTaskTCB, &err);
+//	APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), 1);
 
 	while(1) {
 		//Update local copy of the speed
@@ -91,8 +91,10 @@ void LCDDisplayTask(void* p_args) {
 			dirChng = false;
 		}
 
-		//Wait for next iteration
-		OSTaskSuspend(&LCDDispTaskTCB, &err);
+//		//Wait for next iteration
+//		OSTaskSuspend(&LCDDispTaskTCB, &err);
+//		APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), 1);
+		OSTimeDly(100u, OS_OPT_TIME_TIMEOUT, &err);
 		APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), 1);
 	}
 }
@@ -102,12 +104,7 @@ void LCDDisplayTask(void* p_args) {
 void LCDTmrCallback(void* p_tmr, void* p_args) {
 	RTOS_ERR err;
 
-	bool ready = false;
-	while(!ready) {
-		//Move LCD Display task to the ready queue
-		OSTaskResume(&LCDDispTaskTCB, &err);
-		if(RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE) {
-			ready = true;
-		}
-	}
+	//Move LCD Display task to the ready queue
+	OSTaskResume(&LCDDispTaskTCB, &err);
+	APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), 1);
 }

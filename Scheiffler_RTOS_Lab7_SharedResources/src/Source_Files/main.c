@@ -315,7 +315,11 @@ void VehicleMonitorTask(void* p_args) {
 
 	bool speedWarn = false;		//LED Currently signaling a spped warning
 	bool turnWarn = false;		//LED Currently signaling a turn warning
-	bool hardTurn = false;		//Currently in a hard turn? if timer expires before this is cleared, send a warning
+	SLD_Direction_t currDir = Straight;
+
+	//Start the timer
+	OSTmrStart(&vehTurnTimeout, &err);
+	APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), ;);
 
 	while(1) {
 		//Wait for speed change, direction change, or hard left/right timeout
@@ -323,15 +327,15 @@ void VehicleMonitorTask(void* p_args) {
 		APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), ;);
 		OSFlagPost(&vehMonFlags, flags, OS_OPT_POST_FLAG_CLR, &err);
 
-		if(flags & SPD_SETPT_FLAG) {																					//Speed change occurred
+		if(flags & SPD_SETPT_FLAG) {																		//Speed change occurred
 			//Critical section
 			OSMutexPend(&setptDataMutex, 0, OS_OPT_PEND_BLOCKING, &timestamp, &err);
-			if(setptData.speed > 70 && !speedWarn) {																	// LED Currently not warning about a speed violation?
+			if(setptData.speed > 70 && !speedWarn) {														// LED Currently not warning about a speed violation?
 				OSFlagPost(&LEDDriverEvent, LED_WARN_SPD_VIOLATION, OS_OPT_POST_FLAG_SET, &err);
 				APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), ;);
 				speedWarn = true;
 			}
-			else if(setptData.speed < 75 && speedWarn) {																//LED currently warning about a speed violation?
+			else if(setptData.speed < 75 && speedWarn) {													//LED currently warning about a speed violation?
 				OSFlagPost(&LEDDriverEvent, LED_WARN_CLR_SPD_VIOLATION, OS_OPT_POST_FLAG_SET, &err);
 				APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), ;);
 				speedWarn = false;
@@ -339,31 +343,24 @@ void VehicleMonitorTask(void* p_args) {
 			OSMutexPost(&setptDataMutex, OS_OPT_POST_NONE, &err);
 		}
 
-		if(flags & VEH_DIR_FLAG) {																						//Vehicle direction changed
-			//Crtical section
-			OSMutexPend(&vehDirMutex, 0, OS_OPT_PEND_BLOCKING, &timestamp, &err);
-			if((vehicleDir == HardLeft || vehicleDir == HardRight) && !hardTurn) {										//Hard turn initiated
-				hardTurn = true;																						//Set State variable
-				OSTmrStart(&vehTurnTimeout, &err);																		//Start timeout timer
-				APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), ;);
-			}
-			else if((vehicleDir == Left || vehicleDir == Straight || vehicleDir == Right) && turnWarn && hardTurn) {	//Hard turn stopped, turn warning on, need to be turned off
-				hardTurn = false;																						//Set turning state variables
+		if(flags & VEH_DIR_FLAG) {																			//Vehicle direction changed
+			if(turnWarn) {																					//turn off warning
 				turnWarn = false;
-				OSFlagPost(&LEDDriverEvent, LED_WARN_CLR_TRN_VIOLATION, OS_OPT_POST_FLAG_SET, &err);					//Signal LED task to turn off turn warning light
+				OSFlagPost(&LEDDriverEvent, LED_WARN_CLR_TRN_VIOLATION, OS_OPT_POST_FLAG_SET, &err);		//Signal LED task to turn off turn warning light
+				APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), ;);
+
+			}
+			else {																							//Only need to stop timer if it hasn't already expired
+				OSTmrStop(&vehTurnTimeout, OS_OPT_TMR_NONE, DEF_NULL, &err);								//Restart the timer
 				APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), ;);
 			}
-			else if((vehicleDir == Left || vehicleDir == Straight || vehicleDir == Right) && !turnWarn && hardTurn) {	//Hard turn stopped, timer has not expired yet
-				hardTurn = false;
-				OSTmrStop(&vehTurnTimeout, OS_OPT_TMR_NONE, DEF_NULL, &err);											//Stop timer
-				APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), ;);
-			}
-			OSMutexPost(&vehDirMutex, OS_OPT_POST_NONE, &err);
+			OSTmrStart(&vehTurnTimeout, &err);
+			APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), ;);
 		}
 
-		if(flags & VEH_TURNTM_FLAG) {																					//Hard left/right timeout expired
-			turnWarn = true;																							//Set turn warning state variable
-			OSFlagPost(&LEDDriverEvent, LED_WARN_TRN_VIOLATION, OS_OPT_POST_FLAG_SET, &err);							//Signal LED task to turn on turn warning light
+		if(flags & VEH_TURNTM_FLAG) {																		//Hard left/right timeout expired
+			turnWarn = true;																				//Set turn warning state variable
+			OSFlagPost(&LEDDriverEvent, LED_WARN_TRN_VIOLATION, OS_OPT_POST_FLAG_SET, &err);				//Signal LED task to turn on turn warning light
 			APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), ;);
 		}
 	}

@@ -97,24 +97,26 @@ void VehicleDirectionTask(void * p_args) {
 
 	SLD_Init();       				//Initialize CAPSENSE driver and set initial slider state
 
-	SLD_Direction_t prevDir = SLD_GetDirection();
+	SLD_Direction_t prevDir, localDir = SLD_GetDirection();
 
-	OSTmrStart(&vehDirTimer, &err);	//Start timer
-	APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), ;);
+	//OSTmrStart(&vehDirTimer, &err);	//Start timer
+	//APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), ;);
 
 	while(1) {
+		CAPSENSE_Init();
+		localDir = SLD_GetDirection();
 		OSMutexPend(&vehDirMutex, 0, OS_OPT_PEND_BLOCKING, &timestamp, &err);
-		vehicleDir = SLD_GetDirection();										//Get Current direction
+		vehicleDir = localDir;										//Get Current direction
 		OSMutexPost(&vehDirMutex, OS_OPT_POST_NONE, &err);
 		APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), ;);
 
-		if(prevDir != vehicleDir) {
+		if(prevDir != localDir) {
 			OSFlagPost(&vehMonFlags, VEH_DIR_FLAG, OS_OPT_POST_FLAG_SET, &err);	//If direction changed signal to vehicle monitor task
 			APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), ;);
 		}
-		prevDir = vehicleDir;													//Update local direction variable
+		prevDir = localDir;														//Update local direction variable
 
-		OSTaskSuspend(&vehicleDirTaskTCB, &err);								//Wait for timer to expire
+		OSTimeDly(100u, OS_OPT_TIME_TIMEOUT, &err);
 		APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), ;);
 	}
 }
