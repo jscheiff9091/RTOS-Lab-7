@@ -61,24 +61,30 @@ LED_Action_t SLD_GetSLDAction(SLD_SliderPressedState_t sld_leftSideState, SLD_Sl
 }
 
 /* Slider - Get Current Diection */
-SLD_Direction_t SLD_GetDirection(void) {
-	CAPSENSE_Sense();
+Direction_t SLD_GetDirection(void) {
+	//CAPSENSE_Init();									//Re-initialize CAPSENSE -> CAPSENSE readings more reliable when I added this?
+	RTOS_ERR err;
+	Direction_t ret;
+	OSSchedLock(&err);
+	CAPSENSE_Sense();									//Read the touch slider
 
 	if(CAPSENSE_getPressed(POS0)){						//Position 0selected?
-		return HardLeft;
+		ret = HardLeft;
 	}
 	else if(CAPSENSE_getPressed(POS1)) {				//Position 1 selected?
-		return Left;
+		ret = Left;
 	}
 	else if(CAPSENSE_getPressed(POS2)) {				//Position 2 selected?
-		return Right;
+		ret = Right;
 	}
 	else if(CAPSENSE_getPressed(POS3)) {				//Position 3 selected?
-		return HardRight;
+		ret = HardRight;
 	}
 	else {
-		return Straight;
+		ret = Straight;
 	}
+	OSSchedUnlock(&err);
+	return ret;
 }
 
 /* Touch slider signal timer */
@@ -97,16 +103,21 @@ void VehicleDirectionTask(void * p_args) {
 
 	SLD_Init();       				//Initialize CAPSENSE driver and set initial slider state
 
-	SLD_Direction_t prevDir, localDir = SLD_GetDirection();
+	Direction_t prevDir, localDir = SLD_GetDirection();
 
 	//OSTmrStart(&vehDirTimer, &err);	//Start timer
 	//APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), ;);
 
 	while(1) {
-		CAPSENSE_Init();
 		localDir = SLD_GetDirection();
 		OSMutexPend(&vehDirMutex, 0, OS_OPT_PEND_BLOCKING, &timestamp, &err);
-		vehicleDir = localDir;										//Get Current direction
+		vehicleDir.dir = localDir;										//Get Current direction
+		if(prevDir != localDir && (localDir == HardLeft || localDir == Left)) {
+			vehicleDir.leftCnt++;
+		}
+		else if(prevDir != localDir && (localDir == HardRight || localDir == Right))  {
+			vehicleDir.rightCnt++;
+		}
 		OSMutexPost(&vehDirMutex, OS_OPT_POST_NONE, &err);
 		APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), ;);
 
@@ -116,7 +127,7 @@ void VehicleDirectionTask(void * p_args) {
 		}
 		prevDir = localDir;														//Update local direction variable
 
-		OSTimeDly(100u, OS_OPT_TIME_TIMEOUT, &err);
+		OSTimeDly(100u, OS_OPT_TIME_DLY, &err);
 		APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), ;);
 	}
 }

@@ -135,7 +135,7 @@ void GPIO_EVEN_IRQHandler(void) {
 
 	uint32_t gpioInt = GPIO_IntGet();				//Read IF register
 	GPIO_IntClear(gpioInt);							//Set IFC register
-	for(int i = 0; i < 7000; i++);     				//Button Debounce
+	for(int i = 0; i < 10000; i++);     		 	//Button Debounce
 
 	RTOS_ERR err;
 	GPIO_BTNState_t btn0State = GPIO_BTNReleased;
@@ -170,7 +170,7 @@ void SpeedSetpointTask(void* p_args) {
 	OSMutexPend(&setptDataMutex, 0, OS_OPT_PEND_BLOCKING, &timestamp, &err);	//Contend for the mutex
 	setptData.num_dec = 0;									//Initialize setpoint data variable
 	setptData.num_inc = 0;
-	setptData.speed = 50;
+	setptData.speed = 40;
 	OSMutexPost(&setptDataMutex, OS_OPT_POST_NONE, &err);		//Release mutex
 
 	GPIO_InitBTNs();										//Enable push buttons

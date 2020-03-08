@@ -51,6 +51,13 @@ typedef enum
 	Straight,
 	Right,
 	HardRight
+}Direction_t;
+
+typedef struct
+{
+	Direction_t dir;
+	int leftCnt;
+	int rightCnt;
 }SLD_Direction_t;
 
 // ----- Global Variables ------
@@ -102,6 +109,6 @@ void SLD_TimerCallback(void* p_tmr, void* p_args);
 /// @brief Get direction of the vehicle as indicated by the touch slider
 ///
 /// @return	Direction of the vehicle
-SLD_Direction_t SLD_GetDirection(void);
+Direction_t SLD_GetDirection(void);
 
 #endif /* SRC_HEADER_FILES_SLIDER_H_ */

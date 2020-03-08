@@ -29,7 +29,7 @@ void LCDDisplayTask(void* p_args) {
 	char* dirStr[] = DIRECTION_STRINGS;
 	char buffer[15];
 	int currSpeed;
-	SLD_Direction_t currDir;
+	Direction_t currDir;
 	bool spdChng, dirChng = false;
 
 	//Initialize the display
@@ -47,7 +47,7 @@ void LCDDisplayTask(void* p_args) {
 
 	//Initialize local copy of direction
 	OSMutexPend(&vehDirMutex, 0, OS_OPT_PEND_BLOCKING, &timestamp, &err);
-	currDir = vehicleDir;
+	currDir = vehicleDir.dir;
 	OSMutexPost(&vehDirMutex, OS_OPT_POST_NONE, &err);
 	APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), 1);
 
@@ -75,8 +75,8 @@ void LCDDisplayTask(void* p_args) {
 
 		//Update local copy of the direction
 		OSMutexPend(&vehDirMutex, 0, OS_OPT_PEND_BLOCKING, &timestamp, &err);
-		if(currDir != vehicleDir) {
-			currDir = vehicleDir;
+		if(currDir != vehicleDir.dir) {
+			currDir = vehicleDir.dir;
 			dirChng = true;
 		}
 		OSMutexPost(&vehDirMutex, OS_OPT_POST_NONE, &err);
@@ -94,7 +94,7 @@ void LCDDisplayTask(void* p_args) {
 //		//Wait for next iteration
 //		OSTaskSuspend(&LCDDispTaskTCB, &err);
 //		APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), 1);
-		OSTimeDly(100u, OS_OPT_TIME_TIMEOUT, &err);
+		OSTimeDly(100u, OS_OPT_TIME_DLY, &err);
 		APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), 1);
 	}
 }

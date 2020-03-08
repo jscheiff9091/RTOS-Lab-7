@@ -315,7 +315,8 @@ void VehicleMonitorTask(void* p_args) {
 
 	bool speedWarn = false;		//LED Currently signaling a spped warning
 	bool turnWarn = false;		//LED Currently signaling a turn warning
-	SLD_Direction_t currDir = Straight;
+	Direction_t currDir = Straight;
+	int currSpeed = 40;
 
 	//Start the timer
 	OSTmrStart(&vehTurnTimeout, &err);
@@ -330,20 +331,34 @@ void VehicleMonitorTask(void* p_args) {
 		if(flags & SPD_SETPT_FLAG) {																		//Speed change occurred
 			//Critical section
 			OSMutexPend(&setptDataMutex, 0, OS_OPT_PEND_BLOCKING, &timestamp, &err);
-			if(setptData.speed > 70 && !speedWarn) {														// LED Currently not warning about a speed violation?
+			currSpeed = setptData.speed;
+			OSMutexPost(&setptDataMutex, OS_OPT_POST_NONE, &err);
+			if(currSpeed > 70 && !speedWarn) {														//Send Speed violation if speed is greater than 70 for any drection
 				OSFlagPost(&LEDDriverEvent, LED_WARN_SPD_VIOLATION, OS_OPT_POST_FLAG_SET, &err);
 				APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), ;);
 				speedWarn = true;
 			}
-			else if(setptData.speed < 75 && speedWarn) {													//LED currently warning about a speed violation?
+			else if(currSpeed > 50 && !speedWarn && currDir != Straight) {							//Send speed warning if speed is greater than 50 and the drive is turning
+				OSFlagPost(&LEDDriverEvent, LED_WARN_SPD_VIOLATION, OS_OPT_POST_FLAG_SET, &err);
+				APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), ;);
+				speedWarn = true;
+			}
+			else if(setptData.speed < 75 && speedWarn && currDir == Straight) {						//Clear speed violation if driver not turning and speed less than 75
 				OSFlagPost(&LEDDriverEvent, LED_WARN_CLR_SPD_VIOLATION, OS_OPT_POST_FLAG_SET, &err);
 				APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), ;);
 				speedWarn = false;
 			}
-			OSMutexPost(&setptDataMutex, OS_OPT_POST_NONE, &err);
+			else if(setptData.speed < 55 && speedWarn) {											//Clear speed violation if speed is less than 55 for any turn direction
+				OSFlagPost(&LEDDriverEvent, LED_WARN_CLR_SPD_VIOLATION, OS_OPT_POST_FLAG_SET, &err);
+				APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), ;);
+				speedWarn = false;
+			}
 		}
 
 		if(flags & VEH_DIR_FLAG) {																			//Vehicle direction changed
+			OSMutexPend(&vehDirMutex, 0, OS_OPT_PEND_BLOCKING, &timestamp, &err);
+			currDir = vehicleDir.dir;																		//Get Current direction
+			OSMutexPost(&vehDirMutex, OS_OPT_POST_NONE, &err);
 			if(turnWarn) {																					//turn off warning
 				turnWarn = false;
 				OSFlagPost(&LEDDriverEvent, LED_WARN_CLR_TRN_VIOLATION, OS_OPT_POST_FLAG_SET, &err);		//Signal LED task to turn off turn warning light
@@ -356,6 +371,29 @@ void VehicleMonitorTask(void* p_args) {
 			}
 			OSTmrStart(&vehTurnTimeout, &err);
 			APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), ;);
+
+
+			if(currSpeed > 70 && !speedWarn) {															//Speed greater than or equal to 75, speed violation
+				OSFlagPost(&LEDDriverEvent, LED_WARN_SPD_VIOLATION, OS_OPT_POST_FLAG_SET, &err);
+				APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), ;);
+				speedWarn = true;
+			}
+			else if(currSpeed < 75 && speedWarn && currDir == Straight) {								//Speed less than or equal to 70, and direction straight clear speed violation
+				OSFlagPost(&LEDDriverEvent, LED_WARN_CLR_SPD_VIOLATION, OS_OPT_POST_FLAG_SET, &err);
+				APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), ;);
+				speedWarn = false;
+			}
+
+			else if(currSpeed > 50 && !speedWarn && currDir != Straight) {								//Speed greater than or equal to 55 and direction is not straigt
+				OSFlagPost(&LEDDriverEvent, LED_WARN_SPD_VIOLATION, OS_OPT_POST_FLAG_SET, &err);
+				APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), ;);
+				speedWarn = true;
+			}
+			else if(currSpeed < 55 && speedWarn) {														//Any speed less than 55, no speed violation
+				OSFlagPost(&LEDDriverEvent, LED_WARN_CLR_SPD_VIOLATION, OS_OPT_POST_FLAG_SET, &err);
+				APP_RTOS_ASSERT_DBG((RTOS_ERR_CODE_GET(err) == RTOS_ERR_NONE), ;);
+				speedWarn = false;
+			}
 		}
 
 		if(flags & VEH_TURNTM_FLAG) {																		//Hard left/right timeout expired
@@ -374,24 +412,17 @@ void VehicleTurnTimeout(void* tmr, void* p_args) {
 }
 
 void KeithGInit(void) {
-	EMU_DCDCInit_TypeDef dcdcInit = EMU_DCDCINIT_DEFAULT;
-	CMU_HFXOInit_TypeDef hfxoInit = CMU_HFXOINIT_DEFAULT;
+	EMU_DCDCInit_TypeDef dcdcInit = EMU_DCDCINIT_STK_DEFAULT;
+	CMU_HFXOInit_TypeDef hfxoInit = CMU_HFXOINIT_STK_DEFAULT;
 
 	/* Chip errata */
 	CHIP_Init();
 
 	/* Init DCDC regulator and HFXO with kit specific parameters */
-	/* Init DCDC regulator and HFXO with kit specific parameters */
-	/* Initialize DCDC. Always start in low-noise mode. */
-	EMU_EM23Init_TypeDef em23Init = EMU_EM23INIT_DEFAULT;
 	EMU_DCDCInit(&dcdcInit);
-	em23Init.vScaleEM23Voltage = emuVScaleEM23_LowPower;
-	EMU_EM23Init(&em23Init);
 	CMU_HFXOInit(&hfxoInit);
 
-	/* Switch HFCLK to HFRCO and disable HFRCO */
-	//CMU_OscillatorEnable(cmuOsc_HFRCO, true, true);
-	CMU_OscillatorEnable(cmuOsc_HFXO, true, true);
+	/* Switch HFCLK to HFXO and disable HFRCO */
 	CMU_ClockSelectSet(cmuClock_HF, cmuSelect_HFXO);
 	CMU_OscillatorEnable(cmuOsc_HFRCO, false, false);
 }
